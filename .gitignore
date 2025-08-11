@@ -1,0 +1,26 @@
+# Python packaging/build
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+.env/
+.direnv/
+
+# Poetry
+poetry.lock
+
+# PyCache
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# macOS
+.DS_Store
