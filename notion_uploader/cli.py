@@ -27,6 +27,7 @@ Examples:
   notion-upload document.md --title "My Document"
   notion-upload transcript.md --title "Podcast Transcript" --database-id "custom-db-id"
   notion-upload notes.md --verbose
+  notion-upload large-file.md --title "Big Document" --dry-run
         """
     )
     
@@ -34,6 +35,7 @@ Examples:
     parser.add_argument('--title', help='Title for the Notion page (optional)')
     parser.add_argument('--database-id', help='Override the default database ID')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--dry-run', action='store_true', help='Show what would be uploaded without actually uploading')
     
     args = parser.parse_args()
     
@@ -97,6 +99,105 @@ Examples:
                     border_style="red"
                 ))
             sys.exit(1)
+        
+        # DRY RUN MODE: Show what would be uploaded without actually uploading
+        if args.dry_run:
+            console.print(Panel(
+                "[bold yellow]🔍 DRY RUN MODE[/bold yellow]\n\n"
+                "This will show you exactly what would be uploaded to Notion\n"
+                "without making any API calls or creating any pages.",
+                title="[bold blue]Dry Run Mode",
+                border_style="yellow"
+            ))
+            
+            # Load and parse the markdown file
+            try:
+                with open(args.file_path, 'r', encoding='utf-8') as f:
+                    markdown_content = f.read()
+            except Exception as e:
+                console.print(Panel(
+                    f"[bold red]❌ Failed to read file[/bold red]\n\n"
+                    f"[red]Error reading {args.file_path}:[/red]\n"
+                    f"[red]{str(e)}[/red]",
+                    title="[bold red]File Read Error",
+                    border_style="red"
+                ))
+                sys.exit(1)
+            
+            # Parse markdown into blocks
+            console.print("📖 [bold]Parsing markdown file...[/bold]")
+            blocks = uploader.parse_markdown_blocks(markdown_content)
+            
+            # Show parsing results
+            console.print(Panel(
+                f"[bold green]✅ Markdown parsed successfully![/bold green]\n\n"
+                f"[bold]File:[/bold] {args.file_path}\n"
+                f"[bold]Total blocks:[/bold] {len(blocks)}",
+                title="[bold blue]Parsing Results",
+                border_style="green"
+            ))
+            
+            # Check if splitting would be needed
+            if len(blocks) > 100:
+                console.print(Panel(
+                    f"[bold yellow]⚠️  Content would be auto-split[/bold yellow]\n\n"
+                    f"Your content has [bold]{len(blocks)} blocks[/bold], which exceeds "
+                    f"Notion's limit of 100 blocks per page.\n\n"
+                    f"The tool would automatically split this into "
+                    f"[bold]{uploader._split_blocks_for_notion(blocks).__len__()} pages[/bold] "
+                    f"to maintain proper formatting and speaker continuity.",
+                    title="[bold blue]Auto-Splitting Preview",
+                    border_style="yellow"
+                ))
+            
+            # Show sample blocks (first 3 and last 3)
+            console.print("📋 [bold]Sample blocks that would be uploaded:[/bold]")
+            
+            sample_blocks = []
+            if len(blocks) <= 6:
+                sample_blocks = blocks
+            else:
+                sample_blocks = blocks[:3] + [{"object": "block", "type": "divider", "divider": {}}] + blocks[-3:]
+            
+            for i, block in enumerate(sample_blocks):
+                if block.get("type") == "divider":
+                    console.print("   ... [dim](showing middle blocks)[/dim] ...")
+                    continue
+                    
+                block_type = block.get("type", "unknown")
+                if block_type == "heading_1":
+                    console.print(f"   [bold blue]# {block[block_type]['rich_text'][0]['text']['content']}[/bold blue]")
+                elif block_type == "heading_2":
+                    console.print(f"   [bold blue]## {block[block_type]['rich_text'][0]['text']['content']}[/bold blue]")
+                elif block_type == "heading_3":
+                    console.print(f"   [bold blue]### {block[block_type]['rich_text'][0]['text']['content']}[/bold blue]")
+                elif block_type == "bulleted_list_item":
+                    content = block[block_type]['rich_text'][0]['text']['content']
+                    console.print(f"   [green]• {content}[/green]")
+                elif block_type == "numbered_list_item":
+                    content = block[block_type]['rich_text'][0]['text']['content']
+                    console.print(f"   [green]1. {content}[/green]")
+                elif block_type == "paragraph":
+                    content = block[block_type]['rich_text'][0]['text']['content']
+                    if len(content) > 80:
+                        content = content[:80] + "..."
+                    console.print(f"   {content}")
+                else:
+                    console.print(f"   [dim]{block_type}: {str(block)[:60]}...[/dim]")
+            
+            if len(blocks) > 6:
+                console.print(f"\n[dim]... and {len(blocks) - 6} more blocks[/dim]")
+            
+            # Show final summary
+            console.print(Panel(
+                f"[bold green]✅ Dry run completed successfully![/bold green]\n\n"
+                f"Your markdown file is ready for upload.\n"
+                f"Run without [bold]--dry-run[/bold] to actually upload to Notion.",
+                title="[bold blue]Dry Run Summary",
+                border_style="green"
+            ))
+            
+            return  # Exit early, don't proceed to actual upload
         
         # Upload markdown (will automatically split if needed)
         results = uploader.upload_markdown(args.file_path, args.title)
