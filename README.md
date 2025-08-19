@@ -153,12 +153,51 @@ notion-upload notes.md --title "My Notes"
 
 The tool converts the following markdown elements to Notion blocks:
 
-- **Headers** (`#`, `##`, `###`): Converted to heading blocks
-- **Paragraphs**: Converted to paragraph blocks
-- **Bullet Lists**: Converted to bulleted list blocks
-- **Numbered Lists**: Converted to numbered list blocks
-- **Code Blocks**: Converted to code blocks
-- **Bold/Italic**: Preserved as rich text formatting
+| Markdown Syntax | Notion Block Type    | Features             | Limitations                  |
+| --------------- | -------------------- | -------------------- | ---------------------------- |
+| `# Heading`     | `heading_1`          | Rich text formatting | Max 3 levels (h1, h2, h3)    |
+| `## Heading`    | `heading_2`          | Rich text formatting | Notion caps at h3            |
+| `### Heading`   | `heading_3`          | Rich text formatting | Deeper levels become h3      |
+| `**text**`      | `paragraph`          | Bold formatting      | Inline within any text block |
+| `*text*`        | `paragraph`          | Italic formatting    | Inline within any text block |
+| `` `code` ``    | `paragraph`          | Code formatting      | Inline within any text block |
+| `- Item`        | `bulleted_list_item` | Rich text formatting | Nested lists supported       |
+| `1. Item`       | `numbered_list_item` | Rich text formatting | Nested lists supported       |
+| Regular text    | `paragraph`          | Rich text formatting | Auto-split if >1800 chars    |
+| Code blocks     | `code`               | Language detection   | Preserves formatting         |
+
+### Rich Text Formatting
+
+All text blocks support inline formatting:
+
+- **Bold**: `**text**` → Bold text
+- **Italic**: `*text*` → Italic text
+- **Code**: `` `code` `` → Inline code
+- **Mixed**: ` **Bold** and *italic* with ``  `code` `` → Mixed formatting
+
+## Error Handling & Exit Codes
+
+The tool provides comprehensive error handling with specific exit codes:
+
+| Error Type          | Exit Code | Description                        | Common Causes             |
+| ------------------- | --------- | ---------------------------------- | ------------------------- |
+| **File Errors**     | `1`       | File not found or unreadable       | Invalid path, permissions |
+| **Configuration**   | `1`       | Missing API token or database ID   | `.env` not set up         |
+| **Authentication**  | `1`       | Invalid or expired API token       | Token revoked, expired    |
+| **Database Access** | `1`       | Database not found or inaccessible | Wrong ID, no permissions  |
+| **API Rate Limits** | `1`       | Too many requests                  | Hit Notion API limits     |
+| **Content Limits**  | `1`       | Content too large                  | >100 blocks, >2000 chars  |
+| **Network Issues**  | `1`       | Connection failures                | Internet, Notion API down |
+| **Validation**      | `1`       | Invalid content structure          | Malformed markdown        |
+
+### Automatic Content Splitting
+
+When content exceeds Notion's limits, the tool automatically splits it:
+
+- **Block Limit**: >100 blocks → Multiple pages (≤100 blocks each)
+- **Character Limit**: >2000 chars → Multiple blocks (≤1800 chars each)
+- **Speaker Continuity**: Preserves speaker labels with their content
+- **Smart Splitting**: Splits at optimal boundaries (end of content, before new speakers)
 
 ## Configuration
 
